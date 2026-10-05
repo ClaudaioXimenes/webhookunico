@@ -7,7 +7,7 @@ app.use(express.json());
 // Configurações do DataServer do RM Cloud (sem espaços extras)
 const RM_CONFIG = {
   apiUrl: 'https://inspired203870.rm.cloudtotvs.com.br:10607/rmsrestdataserver/rest/RMSPRJ4440576Server',
-  username: 'claudio.totvs',
+  username: '1/claudio.totvs',
   password: 'Totvs2026'
 };
 
