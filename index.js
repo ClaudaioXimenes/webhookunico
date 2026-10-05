@@ -4,11 +4,11 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-// Configurações do DataServer do RM Cloud
+// Configurações do DataServer do RM Cloud (sem espaços extras)
 const RM_CONFIG = {
   apiUrl: 'https://inspired203870.rm.cloudtotvs.com.br:10607/rmsrestdataserver/rest/RMSPRJ4440576Server',
   username: 'claudio.totvs',
-  password: 'Totvs2026  '
+  password: 'Totvs2026'
 };
 
 // Rota do Webhook do Unico
@@ -17,21 +17,27 @@ app.post('/webhook', async (req, res) => {
     const payloadUnico = req.body;
     console.log('[Webhook Unico Recebido]:', JSON.stringify(payloadUnico));
 
-    // Mapeamento do JSON recebido da Unico para o DataServer ZMDWEBHOOK
+    // Suporta tanto o payload padrão do Unico como o JSON ZMDWEBHOOK enviado nos testes
+    let itemData = {};
+    if (payloadUnico.ZMDWEBHOOK && Array.isArray(payloadUnico.ZMDWEBHOOK)) {
+      itemData = payloadUnico.ZMDWEBHOOK[0];
+    } else {
+      itemData = {
+        INTEGRATION: payloadUnico.integration || payloadUnico.id || "",
+        UIDFUNC: payloadUnico.position || payloadUnico.uidfunc || payloadUnico.integration || "",
+        POSNUMBER: String(payloadUnico["position-number"] || payloadUnico.posnumber || ""),
+        UNIT: payloadUnico.unit || "",
+        EVENTO: payloadUnico.event || "EVENTO_UNICO"
+      };
+    }
+
     const bodyRM = {
-      ZMDWEBHOOK: [
-        {
-          INTEGRATION: payloadUnico.integration || payloadUnico.id || "",
-          UIDFUNC: payloadUnico.position || payloadUnico.uidfunc || payloadUnico.integration || "",
-          POSNUMBER: payloadUnico["position-number"] || payloadUnico.posnumber || "",
-          UNIT: payloadUnico.unit || "",
-          EVENTO: payloadUnico.event || "EVENTO_UNICO"
-        }
-      ]
+      ZMDWEBHOOK: [itemData]
     };
 
-    // Autenticação Basic para o TOTVS RM Cloud
-    const authHeader = Buffer.from(`\({RM_CONFIG.username}:\){RM_CONFIG.password}`).toString('base64');
+    // Autenticação Basic limpa e corrigida
+    const credentials = `\({RM_CONFIG.username.trim()}:\){RM_CONFIG.password.trim()}`;
+    const authHeader = Buffer.from(credentials).toString('base64');
 
     // Envio POST para o DataServer do RM
     const rmResponse = await axios.post(RM_CONFIG.apiUrl, bodyRM, {
@@ -44,10 +50,11 @@ app.post('/webhook', async (req, res) => {
 
     console.log('[Resposta DataServer RM]:', rmResponse.status, rmResponse.data);
 
-    // Resposta imediata de sucesso para a Unico
+    // Resposta de sucesso
     return res.status(200).json({
       status: "success",
-      message: "Webhook recebido e enviado ao RM com sucesso."
+      message: "Webhook recebido e enviado ao RM com sucesso.",
+      dataServerResponse: rmResponse.data
     });
 
   } catch (error) {
@@ -59,7 +66,7 @@ app.post('/webhook', async (req, res) => {
     return res.status(500).json({
       status: "error",
       message: "Erro ao repassar dados para o RM",
-      error: error.message
+      error: error.response ? error.response.data : error.message
     });
   }
 });
