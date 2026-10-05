@@ -4,20 +4,21 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
-// Configurações do DataServer do RM Cloud (sem espaços extras)
 const RM_CONFIG = {
   apiUrl: 'https://inspired203870.rm.cloudtotvs.com.br:10607/rmsrestdataserver/rest/RMSPRJ4440576Server',
-  username: 'claudio.totvs',
-  password: 'Totvs2026'
+  // Usando exatamente a hash Base64 que funcionou no cURL/Postman
+  authHeader: 'Basic Y2xhdWRpby50b3R2czpUb3R2czIwMjY='
 };
 
-// Rota do Webhook do Unico
+app.get('/', (req, res) => {
+  res.send('Gateway Webhook Unico -> TOTVS RM Cloud OK!');
+});
+
 app.post('/webhook', async (req, res) => {
   try {
     const payloadUnico = req.body;
     console.log('[Webhook Unico Recebido]:', JSON.stringify(payloadUnico));
 
-    // Suporta tanto o payload padrão do Unico como o JSON ZMDWEBHOOK enviado nos testes
     let itemData = {};
     if (payloadUnico.ZMDWEBHOOK && Array.isArray(payloadUnico.ZMDWEBHOOK)) {
       itemData = payloadUnico.ZMDWEBHOOK[0];
@@ -35,32 +36,32 @@ app.post('/webhook', async (req, res) => {
       ZMDWEBHOOK: [itemData]
     };
 
-    // Autenticação Basic limpa e corrigida
-    const credentials = `\({RM_CONFIG.username.trim()}:\){RM_CONFIG.password.trim()}`;
-    const authHeader = Buffer.from(credentials).toString('base64');
-
-    // Envio POST para o DataServer do RM
+    // Imita exatamente os cabeçalhos de uma requisição do Postman
     const rmResponse = await axios.post(RM_CONFIG.apiUrl, bodyRM, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${authHeader}`
+        'Authorization': RM_CONFIG.authHeader,
+        'User-Agent': 'PostmanRuntime/7.32.3',
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive'
       },
       timeout: 30000
     });
 
     console.log('[Resposta DataServer RM]:', rmResponse.status, rmResponse.data);
 
-    // Resposta de sucesso
     return res.status(200).json({
       status: "success",
-      message: "Webhook recebido e enviado ao RM com sucesso.",
+      message: "Webhook recebido e gravado no RM com sucesso.",
       dataServerResponse: rmResponse.data
     });
 
   } catch (error) {
     console.error('[Erro Webhook -> RM]:', error.message);
     if (error.response) {
-      console.error('[Detalhes RM]:', error.response.status, error.response.data);
+      console.error('[Detalhes RM Error Status]:', error.response.status);
+      console.error('[Detalhes RM Error Data]:', error.response.data);
     }
 
     return res.status(500).json({
