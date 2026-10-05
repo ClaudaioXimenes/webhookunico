@@ -8,7 +8,7 @@ app.use(express.json());
 const RM_CONFIG = {
   apiUrl: 'https://inspired203870.rm.cloudtotvs.com.br:10607/rmsrestdataserver/rest/RMSPRJ4440576Server',
   username: 'claudio.totvs',
-  password: 'Totvs@2025'
+  password: 'Totvs2026  '
 };
 
 // Rota do Webhook do Unico
